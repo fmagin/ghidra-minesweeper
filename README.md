@@ -5,6 +5,7 @@ and just decompiling large functions can take already take ages.
 
 This plugin allows you to distract yourself during those times, while still making it look like you are working.
 
+![](./imgs/minesweeper_demo.png)
 
 
 ## Installation
