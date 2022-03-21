@@ -1,0 +1,36 @@
+name: Scheduled Build against latest Ghidra
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+
+jobs:
+  check_releases:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get jq
+        run: sudo apt-get install -y jq
+      - name: check latest ghidra
+        run: |
+          echo "latest_ghidra_url=$(curl $GITHUB_API_URL/repos/NationalSecurityAgency/ghidra/releases | jq '.[0].assets[0].browser_download_url' -r)" >> $GITHUB_ENV
+          echo "latest_ghidra_version=$(curl https://api.github.com/repos/NationalSecurityAgency/ghidra/releases | jq '.[0].assets[0].browser_download_url | split("_")[-3:-1] | join("_")' -r)" >> $GITHUB_ENV
+      - name: Gets the latest Ghidra version a plugin was released for # as a string like "10.0.1_PUBLIC"
+        # Assumes that the asset has standard ghidra plugin name like ghidra_10.0.1_PUBLIC_20210725_ghidra-minesweeper.zip
+        run: echo "latest_plugin_version=$(curl $GITHUB_API_URL/repos/$GITHUB_REPOSITORY/releases | jq '.[0].assets[0].name | split("_")[1:3] | join("_")')" >> $GITHUB_ENV
+
+        if: !contains(env.latest_ghidra_url, env.latest_plugin_version)
+      - uses: actions/checkout@v2
+      - name: Set up JDK 1.11
+        if: !contains(env.latest_ghidra_url, env.latest_plugin_version)
+        uses: actions/setup-java@v1
+        with:
+          java-version: 1.11
+      - if: !contains(env.latest_ghidra_url, env.latest_plugin_version)
+        uses: er28-0652/setup-ghidra@master
+        with:
+          # use direct URL, so we don't need to extract the version string and deal with PUBLIC vs BETA
+          directLink: ${{ env.latest_ghidra_url }} # easier than extracting the version string this action wants.
+
+      - if: !contains(env.latest_ghidra_url, env.latest_plugin_version)
+        name: Test Extension
+        run: gradle buildExtension # Better than no testing at all
